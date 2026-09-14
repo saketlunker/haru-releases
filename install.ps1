@@ -1,17 +1,23 @@
-#requires -Version 5.1
 #
 # One-line installer for Haru.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/haru-releases/main/install.ps1 | iex"
 #
-# Downloads the latest signed Haru installer, verifies its SHA-256 against the
-# checksums published with the release, and installs it.
+# Reads releases/install.json, downloads the signed installer named there,
+# verifies its SHA-256, and installs it.
 #
 # After this runs once, Haru keeps itself updated on launch through the signed
 # Tauri updater. There is no manual update step.
 #
-# NOTE: this script is fetched and piped to iex, so it must avoid <# #> block
-# comments. PowerShell's parser mis-handles them in that path.
+# Design notes, each of which is a bug this script already hit:
+#   - No <# #> block comments. PowerShell mis-parses them when a script is
+#     piped from Invoke-RestMethod into Invoke-Expression.
+#   - No api.github.com. Unauthenticated API allows 60 requests/hour per IP,
+#     which is shared behind corporate NAT, so it returns 403 unpredictably.
+#     raw.githubusercontent.com is not limited that way.
+#   - No Get-FileHash. Module autoloading can fail under iex.
+#   - Decode Byte[] before parsing. PowerShell 5.1 returns Byte[] from
+#     Invoke-WebRequest .Content for application/octet-stream downloads.
 
 $ErrorActionPreference = 'Stop'
 
@@ -21,8 +27,8 @@ try {
     # Newer PowerShell negotiates TLS on its own.
 }
 
-$repo    = 'saketlunker/haru-releases'
-$headers = @{ 'User-Agent' = 'HaruInstaller/1.0' }
+$manifestUrl = 'https://raw.githubusercontent.com/saketlunker/haru-releases/main/releases/install.json'
+$headers     = @{ 'User-Agent' = 'HaruInstaller/1.0' }
 
 if (-not [Environment]::Is64BitOperatingSystem) {
     throw 'Haru requires 64-bit Windows.'
@@ -32,76 +38,55 @@ Write-Host ''
 Write-Host '  Installing Haru...' -ForegroundColor Cyan
 Write-Host ''
 
-# Resolve the latest release.
 try {
-    $release = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri "https://api.github.com/repos/$repo/releases/latest"
+    $manifest = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri $manifestUrl
 } catch {
-    throw "Could not reach the Haru release feed. $($_.Exception.Message)"
+    throw "Could not reach the Haru release manifest. $($_.Exception.Message)"
 }
 
-$version = $release.tag_name -replace '^v', ''
-$asset   = $release.assets | Where-Object { $_.name -like '*-setup.exe' } | Select-Object -First 1
+$entry = $manifest.'windows-x64'
 
-if (-not $asset) {
-    throw "Release $($release.tag_name) has no Windows installer attached."
+if (-not $entry -or -not $entry.url) {
+    throw 'The Haru release manifest has no Windows x64 build.'
 }
+
+$version  = $manifest.version
+$expected = "$($entry.sha256)".ToLower()
+$fileName = $entry.url.Split('/')[-1]
 
 Write-Host "  Found Haru $version" -ForegroundColor Gray
 
-$workDir   = Join-Path $env:TEMP ('haru-install-' + [Guid]::NewGuid().ToString('N'))
+$workDir = Join-Path $env:TEMP ('haru-install-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workDir -Force | Out-Null
-$installer = Join-Path $workDir $asset.name
+$installer = Join-Path $workDir $fileName
 
 try {
     Write-Host '  Downloading...' -ForegroundColor Gray
-    Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $asset.browser_download_url -OutFile $installer
+    Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $entry.url -OutFile $installer
 
-    # Verify against the published checksums before running anything.
-    $checksumAsset = $release.assets | Where-Object { $_.name -eq 'haru-checksums.txt' } | Select-Object -First 1
-
-    if ($checksumAsset) {
-        # PowerShell 5.1 returns Byte[] here, because GitHub serves release
-        # assets as application/octet-stream. PowerShell 7 returns a string.
-        # Handle both, or the checksum lookup silently finds nothing.
-        $raw = (Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $checksumAsset.browser_download_url).Content
-        if ($raw -is [byte[]]) {
-            $list = [System.Text.Encoding]::UTF8.GetString($raw)
-        } else {
-            $list = [string]$raw
-        }
-
-        $line = $list -split "`r?`n" | Where-Object { $_ -match [regex]::Escape($asset.name) } | Select-Object -First 1
-        $expected = ($line -split '\s+' | Where-Object { $_ } | Select-Object -First 1)
-
-        if (-not $expected) {
-            throw "No checksum published for $($asset.name); refusing to install."
-        }
-
-        # Hash via .NET rather than Get-FileHash: module autoloading can fail
-        # under iex (for example when PSModulePath points into OneDrive), and
-        # an installer must not depend on that.
-        $sha = [System.Security.Cryptography.SHA256]::Create()
-        try {
-            $stream = [System.IO.File]::OpenRead($installer)
-            try {
-                $actual = ([System.BitConverter]::ToString($sha.ComputeHash($stream)) -replace '-', '').ToLower()
-            } finally {
-                $stream.Dispose()
-            }
-        } finally {
-            $sha.Dispose()
-        }
-
-        if ($actual -ne $expected.ToLower()) {
-            throw "Checksum mismatch for $($asset.name). Expected $expected but got $actual."
-        }
-
-        Write-Host '  Checksum verified' -ForegroundColor Gray
-    } else {
-        Write-Warning 'No checksum file published with this release; skipping verification.'
+    if (-not $expected) {
+        throw 'No checksum published for this build; refusing to install.'
     }
 
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [System.IO.File]::OpenRead($installer)
+        try {
+            $actual = ([System.BitConverter]::ToString($sha.ComputeHash($stream)) -replace '-', '').ToLower()
+        } finally {
+            $stream.Dispose()
+        }
+    } finally {
+        $sha.Dispose()
+    }
+
+    if ($actual -ne $expected) {
+        throw "Checksum mismatch for $fileName. Expected $expected but got $actual."
+    }
+
+    Write-Host '  Checksum verified' -ForegroundColor Gray
     Write-Host '  Running installer...' -ForegroundColor Gray
+
     $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
 
     if ($process.ExitCode -ne 0) {

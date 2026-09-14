@@ -1,0 +1,7 @@
+{
+  "version": "0.1.0",
+  "windows-x64": {
+    "url": "https://github.com/saketlunker/haru-releases/releases/download/v0.1.0/haru_0.1.0_x64-setup.exe",
+    "sha256": "c16d70de4d169f8f93d901ecb21c32bb892d984e096ce378066133a3eefedb55"
+  }
+}
