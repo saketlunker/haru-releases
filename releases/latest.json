@@ -1,0 +1,6 @@
+{
+  "version": "0.1.0",
+  "notes": "Placeholder manifest. No binary release has been published yet. Because this version matches the shipped build, the updater treats it as 'no update available' and does nothing.",
+  "pub_date": "2026-09-14T00:00:00Z",
+  "platforms": {}
+}
