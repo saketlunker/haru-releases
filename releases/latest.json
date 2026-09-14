@@ -1,11 +1,11 @@
 {
   "version": "0.1.0",
-  "notes": "First release of Haru. Windows x64.",
-  "pub_date": "2026-09-14T12:07:29Z",
+  "notes": "First release of Wispling. Windows x64.",
+  "pub_date": "2026-09-14T13:33:10Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRQU9uU3pOU1h6anZlMHVMbjg4azM0ZmtRU3BiQnpURXdpbzA3c3VqT2l0UHJEWmdRbm1WR2ZIWTFnOGhmZ2grOTJQMjZPeUxKTWVkNC9pZTAxR1E4N0ladG9FaHBmYVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5Mzg2ODU3CWZpbGU6aGFydV8wLjEuMF94NjQtc2V0dXAuZXhlCm5YUzAxMFpjVVZuVTFBOWYzRWZldi9RdjRnbGFRaVcreTZkYWpFV1ZPZVZXaDhLdWtXU2lYR25SVFF2NGQ5MVVZeFp0ZVhBY1RVa0I4VDEvcThUSEJRPT0K",
-      "url": "https://github.com/saketlunker/haru-releases/releases/download/v0.1.0/haru_0.1.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRQU9uU3pOU1h6amhOdFllaXNSN0pSaFYwUTlwYTNjN3BqWms5SXZVNHBNWXl6UjNZdjNCNm1GZEowRi8waHE3VlNUa1dROHMybE9TcEErVzE0UHhoa1JwVWdETk5pbWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MzkyNzUwCWZpbGU6d2lzcGxpbmdfMC4xLjBfeDY0LXNldHVwLmV4ZQo0OE50bjIvMVYwVnRRTFVhc3NQZkRSdVl3QXdxUFZza2VEZlNRY2FOcHdqNGZwS1FWS09lUTZQWS9WREZIV3BTVnVySWNtRjl2ZHhiTndCNU41dHVDdz09Cg==",
+      "url": "https://github.com/saketlunker/wispling-releases/releases/download/v0.1.0/wispling_0.1.0_x64-setup.exe"
     }
   }
 }

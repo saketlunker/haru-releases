@@ -1,12 +1,12 @@
 #
-# One-line installer for Haru.
+# One-line installer for Wispling.
 #
-#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/haru-releases/main/install.ps1 | iex"
+#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/wispling-releases/main/install.ps1 | iex"
 #
 # Reads releases/install.json, downloads the signed installer named there,
 # verifies its SHA-256, and installs it.
 #
-# After this runs once, Haru keeps itself updated on launch through the signed
+# After this runs once, Wispling keeps itself updated on launch through the signed
 # Tauri updater. There is no manual update step.
 #
 # Design notes, each of which is a bug this script already hit:
@@ -27,36 +27,36 @@ try {
     # Newer PowerShell negotiates TLS on its own.
 }
 
-$manifestUrl = 'https://raw.githubusercontent.com/saketlunker/haru-releases/main/releases/install.json'
-$headers     = @{ 'User-Agent' = 'HaruInstaller/1.0' }
+$manifestUrl = 'https://raw.githubusercontent.com/saketlunker/wispling-releases/main/releases/install.json'
+$headers     = @{ 'User-Agent' = 'WisplingInstaller/1.0' }
 
 if (-not [Environment]::Is64BitOperatingSystem) {
-    throw 'Haru requires 64-bit Windows.'
+    throw 'Wispling requires 64-bit Windows.'
 }
 
 Write-Host ''
-Write-Host '  Installing Haru...' -ForegroundColor Cyan
+Write-Host '  Installing Wispling...' -ForegroundColor Cyan
 Write-Host ''
 
 try {
     $manifest = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri $manifestUrl
 } catch {
-    throw "Could not reach the Haru release manifest. $($_.Exception.Message)"
+    throw "Could not reach the Wispling release manifest. $($_.Exception.Message)"
 }
 
 $entry = $manifest.'windows-x64'
 
 if (-not $entry -or -not $entry.url) {
-    throw 'The Haru release manifest has no Windows x64 build.'
+    throw 'The Wispling release manifest has no Windows x64 build.'
 }
 
 $version  = $manifest.version
 $expected = "$($entry.sha256)".ToLower()
 $fileName = $entry.url.Split('/')[-1]
 
-Write-Host "  Found Haru $version" -ForegroundColor Gray
+Write-Host "  Found Wispling $version" -ForegroundColor Gray
 
-$workDir = Join-Path $env:TEMP ('haru-install-' + [Guid]::NewGuid().ToString('N'))
+$workDir = Join-Path $env:TEMP ('wispling-install-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workDir -Force | Out-Null
 $installer = Join-Path $workDir $fileName
 
@@ -98,6 +98,6 @@ finally {
 }
 
 Write-Host ''
-Write-Host "  Haru $version installed." -ForegroundColor Green
+Write-Host "  Wispling $version installed." -ForegroundColor Green
 Write-Host '  Find it in the Start Menu. It updates itself from now on.' -ForegroundColor Gray
 Write-Host ''

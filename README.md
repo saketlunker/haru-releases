@@ -1,6 +1,6 @@
-# Haru Releases
+# Wispling Releases
 
-This repository is the public release channel for **Haru**, a desktop companion pet.
+This repository is the public release channel for **Wispling**, a desktop companion pet.
 
 It contains the installer, release manifests, checksums, and binary assets.
 It does **not** contain the source code, which lives in a private repository.
@@ -10,15 +10,15 @@ It does **not** contain the source code, which lives in a private repository.
 One line, once:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/haru-releases/main/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/wispling-releases/main/install.ps1 | iex"
 ```
 
-That installs Haru into `%LOCALAPPDATA%\Haru`, adds a Start Menu shortcut, and
-puts `haru` on your `PATH`.
+That installs Wispling into `%LOCALAPPDATA%\Wispling`, adds a Start Menu shortcut, and
+puts `wispling` on your `PATH`.
 
 ## Updating
 
-You don't. Haru checks this repository on every launch, verifies the release
+You don't. Wispling checks this repository on every launch, verifies the release
 signature, and installs the update in the background. There is no second
 install step and no manual update command.
 
@@ -45,5 +45,5 @@ archives, internal build output, private debugging material, or CI secrets.
 
 ## Credits
 
-Haru began as a rebrand of [`jupram/tokki`](https://github.com/jupram/tokki) by
+Wispling began as a rebrand of [`jupram/tokki`](https://github.com/jupram/tokki) by
 Jupram, used with permission, and has diverged since.
