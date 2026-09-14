@@ -60,9 +60,18 @@ try {
     $checksumAsset = $release.assets | Where-Object { $_.name -eq 'haru-checksums.txt' } | Select-Object -First 1
 
     if ($checksumAsset) {
-        $list = (Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $checksumAsset.browser_download_url).Content
-        $line = $list -split "`n" | Where-Object { $_ -match [regex]::Escape($asset.name) } | Select-Object -First 1
-        $expected = ($line -split '\s+' | Select-Object -First 1)
+        # PowerShell 5.1 returns Byte[] here, because GitHub serves release
+        # assets as application/octet-stream. PowerShell 7 returns a string.
+        # Handle both, or the checksum lookup silently finds nothing.
+        $raw = (Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $checksumAsset.browser_download_url).Content
+        if ($raw -is [byte[]]) {
+            $list = [System.Text.Encoding]::UTF8.GetString($raw)
+        } else {
+            $list = [string]$raw
+        }
+
+        $line = $list -split "`r?`n" | Where-Object { $_ -match [regex]::Escape($asset.name) } | Select-Object -First 1
+        $expected = ($line -split '\s+' | Where-Object { $_ } | Select-Object -First 1)
 
         if (-not $expected) {
             throw "No checksum published for $($asset.name); refusing to install."
