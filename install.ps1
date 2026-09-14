@@ -1,25 +1,24 @@
-<#
-.SYNOPSIS
-    One-line installer for Haru.
-
-.DESCRIPTION
-    Run directly from the web:
-
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/haru-releases/main/install.ps1 | iex"
-
-    Downloads the latest signed Haru installer, verifies its SHA-256 against
-    the checksums published with the release, and installs it.
-
-    After this runs once, Haru keeps itself updated on launch through the
-    signed Tauri updater. There is no manual update step.
-#>
+#requires -Version 5.1
+#
+# One-line installer for Haru.
+#
+#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/saketlunker/haru-releases/main/install.ps1 | iex"
+#
+# Downloads the latest signed Haru installer, verifies its SHA-256 against the
+# checksums published with the release, and installs it.
+#
+# After this runs once, Haru keeps itself updated on launch through the signed
+# Tauri updater. There is no manual update step.
+#
+# NOTE: this script is fetched and piped to iex, so it must avoid <# #> block
+# comments. PowerShell's parser mis-handles them in that path.
 
 $ErrorActionPreference = 'Stop'
 
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 } catch {
-    # Modern PowerShell negotiates TLS itself.
+    # Newer PowerShell negotiates TLS on its own.
 }
 
 $repo    = 'saketlunker/haru-releases'
@@ -33,11 +32,9 @@ Write-Host ''
 Write-Host '  Installing Haru...' -ForegroundColor Cyan
 Write-Host ''
 
-# ---- find the latest release -------------------------------------------------
-
+# Resolve the latest release.
 try {
-    $release = Invoke-RestMethod -UseBasicParsing -Headers $headers `
-        -Uri "https://api.github.com/repos/$repo/releases/latest"
+    $release = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri "https://api.github.com/repos/$repo/releases/latest"
 } catch {
     throw "Could not reach the Haru release feed. $($_.Exception.Message)"
 }
@@ -51,28 +48,21 @@ if (-not $asset) {
 
 Write-Host "  Found Haru $version" -ForegroundColor Gray
 
-# ---- download ----------------------------------------------------------------
-
-$workDir = Join-Path $env:TEMP ("haru-install-" + [Guid]::NewGuid().ToString('N'))
+$workDir   = Join-Path $env:TEMP ('haru-install-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workDir -Force | Out-Null
 $installer = Join-Path $workDir $asset.name
 
 try {
     Write-Host '  Downloading...' -ForegroundColor Gray
-    Invoke-WebRequest -UseBasicParsing -Headers $headers `
-        -Uri $asset.browser_download_url -OutFile $installer
+    Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $asset.browser_download_url -OutFile $installer
 
-    # ---- verify ---------------------------------------------------------------
-
+    # Verify against the published checksums before running anything.
     $checksumAsset = $release.assets | Where-Object { $_.name -eq 'haru-checksums.txt' } | Select-Object -First 1
 
     if ($checksumAsset) {
-        $expectedList = (Invoke-WebRequest -UseBasicParsing -Headers $headers `
-            -Uri $checksumAsset.browser_download_url).Content
-
-        $expected = (($expectedList -split "`n" |
-            Where-Object { $_ -match [regex]::Escape($asset.name) } |
-            Select-Object -First 1) -split '\s+' | Select-Object -First 1)
+        $list = (Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri $checksumAsset.browser_download_url).Content
+        $line = $list -split "`n" | Where-Object { $_ -match [regex]::Escape($asset.name) } | Select-Object -First 1
+        $expected = ($line -split '\s+' | Select-Object -First 1)
 
         if (-not $expected) {
             throw "No checksum published for $($asset.name); refusing to install."
@@ -81,15 +71,13 @@ try {
         $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
 
         if ($actual -ne $expected.ToLower()) {
-            throw "Checksum mismatch for $($asset.name).`n  expected $expected`n  got      $actual"
+            throw "Checksum mismatch for $($asset.name). Expected $expected but got $actual."
         }
 
         Write-Host '  Checksum verified' -ForegroundColor Gray
     } else {
         Write-Warning 'No checksum file published with this release; skipping verification.'
     }
-
-    # ---- install --------------------------------------------------------------
 
     Write-Host '  Running installer...' -ForegroundColor Gray
     $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
