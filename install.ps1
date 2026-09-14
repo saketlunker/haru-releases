@@ -85,6 +85,16 @@ try {
     }
 
     Write-Host '  Checksum verified' -ForegroundColor Gray
+
+    # Invoke-WebRequest tags downloads with Mark-of-the-Web, which makes
+    # Windows refuse to execute them ("Access is denied"). Strip the zone
+    # stream now that the checksum has proven the file is the one we expect.
+    try {
+        Unblock-File -Path $installer -ErrorAction Stop
+    } catch {
+        Remove-Item -LiteralPath "$installer`:Zone.Identifier" -Force -ErrorAction SilentlyContinue
+    }
+
     Write-Host '  Running installer...' -ForegroundColor Gray
 
     $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
