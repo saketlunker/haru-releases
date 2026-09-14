@@ -18,6 +18,10 @@
 #   - No Get-FileHash. Module autoloading can fail under iex.
 #   - Decode Byte[] before parsing. PowerShell 5.1 returns Byte[] from
 #     Invoke-WebRequest .Content for application/octet-stream downloads.
+#   - Handle a blocked launch. Managed machines may run Defender ASR rule
+#     C1DB55AB-C21A-4637-BB3F-A12568109D35, which stops PowerShell starting an
+#     unsigned binary with no reputation. Keep the file and explain, rather
+#     than dying with "Access is denied". Code signing is the real fix.
 
 $ErrorActionPreference = 'Stop'
 
@@ -86,9 +90,8 @@ try {
 
     Write-Host '  Checksum verified' -ForegroundColor Gray
 
-    # Invoke-WebRequest tags downloads with Mark-of-the-Web, which makes
-    # Windows refuse to execute them ("Access is denied"). Strip the zone
-    # stream now that the checksum has proven the file is the one we expect.
+    # Invoke-WebRequest tags downloads with Mark-of-the-Web. Clear it now that
+    # the checksum has proven the file is exactly what we published.
     try {
         Unblock-File -Path $installer -ErrorAction Stop
     } catch {
@@ -97,14 +100,41 @@ try {
 
     Write-Host '  Running installer...' -ForegroundColor Gray
 
-    $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+    $launchFailed = $false
+    try {
+        $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru -ErrorAction Stop
+        if ($process.ExitCode -ne 0) {
+            throw "Installer exited with code $($process.ExitCode)."
+        }
+    } catch {
+        # Managed Windows machines may run Defender ASR rule
+        # C1DB55AB-C21A-4637-BB3F-A12568109D35 (advanced ransomware
+        # protection), which blocks PowerShell from launching an unsigned
+        # binary that has no reputation yet. Keep the verified download and
+        # tell the user how to finish, rather than failing with a bare
+        # "Access is denied".
+        $launchFailed = $true
+        $kept = Join-Path ([Environment]::GetFolderPath('Desktop')) $fileName
+        try { Copy-Item $installer $kept -Force } catch { $kept = $installer }
 
-    if ($process.ExitCode -ne 0) {
-        throw "Installer exited with code $($process.ExitCode)."
+        Write-Host ''
+        Write-Host '  Your security policy blocked the installer from starting.' -ForegroundColor Yellow
+        Write-Host '  The download is verified and safe to run manually:' -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host "    $kept" -ForegroundColor Cyan
+        Write-Host ''
+        Write-Host '  Double-click it to finish installing Wispling.' -ForegroundColor Yellow
+        Write-Host ''
     }
 }
 finally {
-    Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not $launchFailed) {
+        Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+if ($launchFailed) {
+    exit 1
 }
 
 Write-Host ''
