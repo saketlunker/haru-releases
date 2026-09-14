@@ -77,7 +77,20 @@ try {
             throw "No checksum published for $($asset.name); refusing to install."
         }
 
-        $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+        # Hash via .NET rather than Get-FileHash: module autoloading can fail
+        # under iex (for example when PSModulePath points into OneDrive), and
+        # an installer must not depend on that.
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $stream = [System.IO.File]::OpenRead($installer)
+            try {
+                $actual = ([System.BitConverter]::ToString($sha.ComputeHash($stream)) -replace '-', '').ToLower()
+            } finally {
+                $stream.Dispose()
+            }
+        } finally {
+            $sha.Dispose()
+        }
 
         if ($actual -ne $expected.ToLower()) {
             throw "Checksum mismatch for $($asset.name). Expected $expected but got $actual."
